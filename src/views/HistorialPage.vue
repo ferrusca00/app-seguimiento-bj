@@ -34,12 +34,12 @@
         <ion-card v-for="registro in registrosFiltrados" :key="registro.id" class="historial-card">
           <ion-card-header>
             <div class="card-header-top">
-              <span class="unidad-categoria">{{ registro.tipoUnidad }}</span>
-              <ion-badge color="success">Concluido y Liberado</ion-badge>
+              <span class="unidad-categoria">Servicio {{ registro.tipo_servicio }}</span>
+              <ion-badge color="success">{{ registro.estado_actual }}</ion-badge>
             </div>
-            <ion-card-title class="economico-title">No. Unidad: {{ registro.numeroUnidad }}</ion-card-title>
+            <ion-card-title class="economico-title">No. Unidad: {{ registro.numero_economico }}</ion-card-title>
             <ion-card-subtitle>
-              Placas: {{ registro.placas }} · {{ registro.ubicacionActivo }}
+              Placas: {{ registro.placas }} · Apertura: {{ registro.fecha_apertura }}
             </ion-card-subtitle>
           </ion-card-header>
 
@@ -47,19 +47,24 @@
             <!-- 1. Descripción del Mantenimiento Realizado -->
             <div class="seccion-bloque">
               <span class="seccion-titulo">Descripción del Mantenimiento Realizado:</span>
-              <p class="descripcion-texto">{{ registro.descripcionMantenimiento }}</p>
+              <p class="descripcion-texto">{{ registro.diagnostico_inicial }}</p>
             </div>
 
-            <!-- 2. No. RAF Oficial -->
+            <!-- 2. Folios Administrativos Oficiales (RAF, Cotización, Orden, PSL) -->
             <div class="raf-bloque">
               <span class="raf-etiqueta">Número de RAF Autorizado:</span>
-              <span class="raf-valor">{{ registro.numeroRaf }}</span>
-              <span class="raf-fecha">Aprobado en Cartera de Proyectos: {{ registro.fechaCartera }}</span>
+              <span class="raf-valor">{{ registro.folios.folio_raf }}</span>
+              <span class="raf-fecha">
+                Cotización: {{ registro.folios.folio_cotizacion }} · Orden: {{ registro.folios.folio_orden_taller }} · PSL: {{ registro.folios.folio_solicitud_psl }}
+              </span>
+              <span class="raf-fecha">
+                Aprobado en Cartera de Proyectos: {{ registro.folios.autorizado_cartera ? 'Sí (Autorizado)' : 'Pendiente' }}
+              </span>
             </div>
 
-            <!-- 3. Fechas y Horas Exactas de Entrada y Salida (Registro Cruzado Taller y Usuario) -->
+            <!-- 3. Fechas y Horas Exactas de Entrada y Salida (Registro Cruzado Taller y Usuario con Odómetro) -->
             <div class="registro-cruzado-container">
-              <span class="seccion-titulo">Registro de Fechas y Horas:</span>
+              <span class="seccion-titulo">Registro de Fechas y Horas de Tránsito:</span>
 
               <!-- Bloque Entrada -->
               <div class="horario-box entrada-box">
@@ -70,14 +75,25 @@
                 <div class="horario-grid">
                   <div class="horario-item">
                     <span class="actor-label">Registro Usuario (Operador):</span>
-                    <strong class="hora-val">{{ registro.entrada.fechaHoraUsuario }}</strong>
+                    <strong class="hora-val">
+                      {{ getTransito(registro, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR)?.fecha_hora_declarada || 'N/A' }}
+                    </strong>
                   </div>
                   <div class="horario-item">
                     <span class="actor-label">Registro Personal de Taller:</span>
-                    <strong class="hora-val">{{ registro.entrada.fechaHoraTaller }}</strong>
+                    <strong class="hora-val">
+                      {{ getTransito(registro, TipoMovimiento.ENTRADA, ActorRegistro.TALLER)?.fecha_hora_declarada || 'N/A' }}
+                    </strong>
                   </div>
                 </div>
-                <span class="odometro-tag">Lectura de Ingreso: {{ registro.entrada.lecturaUso }}</span>
+                <span class="odometro-tag">
+                  Lectura de Ingreso:
+                  {{
+                    getTransito(registro, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR)?.lectura_odometro
+                      ? getTransito(registro, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR)?.lectura_odometro.toLocaleString() + ' km (Odómetro)'
+                      : 'Sin registro'
+                  }}
+                </span>
               </div>
 
               <!-- Bloque Salida -->
@@ -89,11 +105,15 @@
                 <div class="horario-grid">
                   <div class="horario-item">
                     <span class="actor-label">Aviso de Salida del Taller:</span>
-                    <strong class="hora-val">{{ registro.salida.fechaHoraTaller }}</strong>
+                    <strong class="hora-val">
+                      {{ getTransito(registro, TipoMovimiento.SALIDA, ActorRegistro.TALLER)?.fecha_hora_declarada || 'N/A' }}
+                    </strong>
                   </div>
                   <div class="horario-item">
                     <span class="actor-label">Recepción por Usuario (Operador):</span>
-                    <strong class="hora-val">{{ registro.salida.fechaHoraUsuario }}</strong>
+                    <strong class="hora-val">
+                      {{ getTransito(registro, TipoMovimiento.SALIDA, ActorRegistro.OPERADOR)?.fecha_hora_declarada || 'N/A' }}
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -149,73 +169,180 @@ import {
   receiptOutline,
   timeOutline,
 } from 'ionicons/icons';
-
-interface RegistroCruzadoHoras {
-  fechaHoraUsuario: string;
-  fechaHoraTaller: string;
-  lecturaUso?: string;
-}
-
-interface HistorialRegistroMock {
-  id: string;
-  folio?: string;
-  numeroUnidad: string;
-  placas: string;
-  tipoUnidad: string;
-  ubicacionActivo: string;
-  descripcionMantenimiento: string;
-  numeroRaf: string;
-  fechaCartera: string;
-  entrada: RegistroCruzadoHoras;
-  salida: RegistroCruzadoHoras;
-  operadorNombre: string;
-  tallerNombre: string;
-}
+import {
+  ExpedienteMantenimiento,
+  TipoServicio,
+  TipoFirmante,
+  TipoMovimiento,
+  ActorRegistro,
+  EstatusRefacciones,
+  RegistroTransito,
+} from '@/types/mantenimiento';
 
 const busqueda = ref('');
 
-const registrosConcluidos = ref<HistorialRegistroMock[]>([
+const getTransito = (
+  expediente: ExpedienteMantenimiento,
+  mov: TipoMovimiento,
+  actor: ActorRegistro
+): RegistroTransito | undefined => {
+  return expediente.registros_transito.find(
+    (r) => r.tipo_movimiento === mov && r.actor_reporta === actor
+  );
+};
+
+const registrosConcluidos = ref<ExpedienteMantenimiento[]>([
   {
     id: 'hist-01',
-    numeroUnidad: '1000016830',
+    numero_economico: '1000016830',
     placas: 'WP-8732-B',
-    tipoUnidad: 'Pipa de Agua 10,000L',
-    ubicacionActivo: 'Base Comalcalco',
-    descripcionMantenimiento: 'Reemplazo de balatas reforzadas, rectificado de tambores e instalación de válvula neumática de freno de estacionamiento.',
-    numeroRaf: 'RAF-BJ-2026-072',
-    fechaCartera: '28/08/2026',
-    entrada: {
-      fechaHoraUsuario: '31/08/2026 08:15 hrs',
-      fechaHoraTaller: '31/08/2026 08:20 hrs',
-      lecturaUso: '94,100 km (Odómetro)',
+    tipo_servicio: TipoServicio.CORRECTIVO,
+    diagnostico_inicial:
+      'Reemplazo de balatas reforzadas, rectificado de tambores e instalación de válvula neumática de freno de estacionamiento.',
+    fecha_apertura: '25/08/2026',
+    estado_actual: 'Concluido y Liberado',
+    folios: {
+      folio_cotizacion: 'COT-FRE-9180',
+      fecha_envio_cotizacion: '26/08/2026',
+      folio_raf: 'RAF-BJ-2026-072',
+      autorizado_cartera: true,
+      folio_solicitud_psl: 'DTI2026000210',
+      folio_orden_taller: 'MPC2026000390',
     },
-    salida: {
-      fechaHoraTaller: '05/09/2026 16:45 hrs',
-      fechaHoraUsuario: '05/09/2026 17:00 hrs',
-    },
-    operadorNombre: 'C. Miguel Ángel Torres',
-    tallerNombre: 'Frenos y Suspensiones del Grijalva',
+    firmas_presupuesto: [
+      {
+        tipo_firmante: TipoFirmante.OPERADOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'C. Miguel Ángel Torres',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '26/08/2026 14:00',
+      },
+      {
+        tipo_firmante: TipoFirmante.JEFE_AREA,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Carlos Mendoza',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '27/08/2026 09:30',
+      },
+      {
+        tipo_firmante: TipoFirmante.SUPERVISOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Fernando Ruiz',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '27/08/2026 11:15',
+      },
+    ],
+    registros_transito: [
+      {
+        tipo_movimiento: TipoMovimiento.ENTRADA,
+        actor_reporta: ActorRegistro.OPERADOR,
+        fecha_hora_declarada: '31/08/2026 08:15 hrs',
+        fecha_hora_servidor: '31/08/2026 08:15:22',
+        lectura_odometro: 94100,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.ENTRADA,
+        actor_reporta: ActorRegistro.TALLER,
+        fecha_hora_declarada: '31/08/2026 08:20 hrs',
+        fecha_hora_servidor: '31/08/2026 08:20:10',
+        lectura_odometro: 94100,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.SALIDA,
+        actor_reporta: ActorRegistro.TALLER,
+        fecha_hora_declarada: '05/09/2026 16:45 hrs',
+        fecha_hora_servidor: '05/09/2026 16:45:05',
+        lectura_odometro: 94105,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.SALIDA,
+        actor_reporta: ActorRegistro.OPERADOR,
+        fecha_hora_declarada: '05/09/2026 17:00 hrs',
+        fecha_hora_servidor: '05/09/2026 17:00:15',
+        lectura_odometro: 94105,
+      },
+    ],
+    estatus_refacciones: EstatusRefacciones.COMPLETO,
+    avance_mantenimiento: 100,
+    fecha_notificacion_termino: '05/09/2026 16:45',
+    conformidad_operador: true,
+    fecha_conformidad: '05/09/2026 17:00',
   },
   {
     id: 'hist-02',
-    numeroUnidad: '1000015942',
+    numero_economico: '1000015942',
     placas: 'TR-4512-B',
-    tipoUnidad: 'Camioneta Pick-up Supervisión',
-    ubicacionActivo: 'Batería Jujo Centro',
-    descripcionMantenimiento: 'Servicio mayor de 120,000 km, reemplazo de kit de distribución, amortiguadores delanteros y alineación con balanceo.',
-    numeroRaf: 'RAF-BJ-2026-058',
-    fechaCartera: '14/08/2026',
-    entrada: {
-      fechaHoraUsuario: '18/08/2026 09:10 hrs',
-      fechaHoraTaller: '18/08/2026 09:20 hrs',
-      lecturaUso: '121,350 km (Odómetro)',
+    tipo_servicio: TipoServicio.PREVENTIVO,
+    diagnostico_inicial:
+      'Servicio mayor de 120,000 km, reemplazo de kit de distribución, amortiguadores delanteros y alineación con balanceo.',
+    fecha_apertura: '10/08/2026',
+    estado_actual: 'Concluido y Liberado',
+    folios: {
+      folio_cotizacion: 'COT-DMT-5021',
+      fecha_envio_cotizacion: '11/08/2026',
+      folio_raf: 'RAF-BJ-2026-058',
+      autorizado_cartera: true,
+      folio_solicitud_psl: 'DTI2026000195',
+      folio_orden_taller: 'MPC2026000360',
     },
-    salida: {
-      fechaHoraTaller: '24/08/2026 15:30 hrs',
-      fechaHoraUsuario: '24/08/2026 16:00 hrs',
-    },
-    operadorNombre: 'C. Sergio Narváez Gómez',
-    tallerNombre: 'Servicios Automotrices y Diésel del Sureste S.A. de C.V.',
+    firmas_presupuesto: [
+      {
+        tipo_firmante: TipoFirmante.OPERADOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'C. Sergio Narváez Gómez',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '11/08/2026 12:30',
+      },
+      {
+        tipo_firmante: TipoFirmante.JEFE_AREA,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Héctor Salazar',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '12/08/2026 10:00',
+      },
+      {
+        tipo_firmante: TipoFirmante.SUPERVISOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Fernando Ruiz',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '12/08/2026 11:30',
+      },
+    ],
+    registros_transito: [
+      {
+        tipo_movimiento: TipoMovimiento.ENTRADA,
+        actor_reporta: ActorRegistro.OPERADOR,
+        fecha_hora_declarada: '18/08/2026 09:10 hrs',
+        fecha_hora_servidor: '18/08/2026 09:10:45',
+        lectura_odometro: 121350,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.ENTRADA,
+        actor_reporta: ActorRegistro.TALLER,
+        fecha_hora_declarada: '18/08/2026 09:20 hrs',
+        fecha_hora_servidor: '18/08/2026 09:20:12',
+        lectura_odometro: 121350,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.SALIDA,
+        actor_reporta: ActorRegistro.TALLER,
+        fecha_hora_declarada: '24/08/2026 15:30 hrs',
+        fecha_hora_servidor: '24/08/2026 15:30:50',
+        lectura_odometro: 121354,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.SALIDA,
+        actor_reporta: ActorRegistro.OPERADOR,
+        fecha_hora_declarada: '24/08/2026 16:00 hrs',
+        fecha_hora_servidor: '24/08/2026 16:00:22',
+        lectura_odometro: 121354,
+      },
+    ],
+    estatus_refacciones: EstatusRefacciones.COMPLETO,
+    avance_mantenimiento: 100,
+    fecha_notificacion_termino: '24/08/2026 15:30',
+    conformidad_operador: true,
+    fecha_conformidad: '24/08/2026 16:00',
   },
 ]);
 
@@ -224,10 +351,10 @@ const registrosFiltrados = computed(() => {
   const q = busqueda.value.toLowerCase();
   return registrosConcluidos.value.filter(
     (r) =>
-      r.numeroUnidad.toLowerCase().includes(q) ||
+      r.numero_economico.toLowerCase().includes(q) ||
       r.placas.toLowerCase().includes(q) ||
-      r.numeroRaf.toLowerCase().includes(q) ||
-      r.descripcionMantenimiento.toLowerCase().includes(q)
+      r.folios.folio_raf.toLowerCase().includes(q) ||
+      r.diagnostico_inicial.toLowerCase().includes(q)
   );
 });
 </script>

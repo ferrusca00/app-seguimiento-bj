@@ -2,26 +2,116 @@
  * Modelos de Dominio para el Sistema de Mantenimiento Vehicular
  * Activo Bellota Jujo - PEMEX Exploración y Producción
  * 
- * Rol: Supervisor de Logística Terrestre
- * Enfoque: Panel de control, seguimiento y notificación de estatus.
- * Sin montos financieros. Todos los formatos son generados externamente.
+ * Diccionario de datos oficial para el seguimiento operativo y administrativo.
  */
 
-export type RolUsuario = 'supervisor' | 'operador' | 'jefe_area' | 'taller';
+// ==========================================
+// ENUMS Y TIPOS DEL DOMINIO ACTIVO BELLOTA JUJO
+// ==========================================
 
-export type TipoMantenimiento = 'preventivo' | 'correctivo';
+export enum TipoServicio {
+  PREVENTIVO = 'PREVENTIVO',
+  CORRECTIVO = 'CORRECTIVO',
+}
 
-export type EtapaProceso =
-  | 'presupuesto'      // 1. Presupuesto (3 firmas: Usuario, Jefe, Supervisor)
-  | 'tramite_raf'      // 2. Trámite RAF y autorización en Cartera de Proyectos
-  | 'solicitud_psl'    // 3. Solicitud de Servicio vía PSL por Área Usuaria
-  | 'orden_taller'     // 4. Orden de Taller generada por Logística y entregada
-  | 'en_taller'        // 5. Estatus en taller (Check-in cruzado, compras y avance mecánico)
-  | 'concluido';       // 6. Concluido con salida cruzada y firma de conformidad
+export enum TipoFirmante {
+  OPERADOR = 'OPERADOR',
+  JEFE_AREA = 'JEFE_AREA',
+  SUPERVISOR = 'SUPERVISOR',
+}
+
+export enum TipoMovimiento {
+  ENTRADA = 'ENTRADA',
+  SALIDA = 'SALIDA',
+}
+
+export enum ActorRegistro {
+  OPERADOR = 'OPERADOR',
+  TALLER = 'TALLER',
+}
+
+export enum EstatusRefacciones {
+  PENDIENTE = 'PENDIENTE',
+  EN_PROCESO = 'EN_PROCESO',
+  COMPLETO = 'COMPLETO',
+}
+
+// ==========================================
+// INTERFACES DEL DICCIONARIO DE DATOS
+// ==========================================
 
 /**
- * Control del estado de firma física sobre los formatos impresos oficiales
+ * Trazabilidad de firmas físicas sobre formatos impresos oficiales
  */
+export interface BitacoraFirma {
+  tipo_firmante: TipoFirmante;
+  firmado_fisicamente: boolean;
+  usuario_que_asienta: string;
+  es_contingencia: boolean;
+  fecha_hora_asentamiento: string;
+}
+
+/**
+ * Registro de check-in / check-out cruzado de tránsito vehicular
+ */
+export interface RegistroTransito {
+  tipo_movimiento: TipoMovimiento;
+  actor_reporta: ActorRegistro;
+  fecha_hora_declarada: string;
+  fecha_hora_servidor: string;
+  lectura_odometro: number;
+}
+
+/**
+ * Trazabilidad de folios administrativos generados en plataformas externas
+ */
+export interface FoliosAdministrativos {
+  folio_cotizacion: string;
+  fecha_envio_cotizacion: string;
+  folio_raf: string;
+  autorizado_cartera: boolean;
+  folio_solicitud_psl: string;
+  folio_orden_taller: string;
+}
+
+/**
+ * Expediente integral de mantenimiento vehicular
+ */
+export interface ExpedienteMantenimiento {
+  // Datos base de la unidad
+  id: string;
+  numero_economico: string;
+  placas: string;
+  tipo_servicio: TipoServicio;
+  diagnostico_inicial: string;
+  fecha_apertura: string;
+  estado_actual: string;
+
+  // Bloques integrados
+  folios: FoliosAdministrativos;
+  firmas_presupuesto: BitacoraFirma[];
+  registros_transito: RegistroTransito[];
+  estatus_refacciones: EstatusRefacciones;
+  avance_mantenimiento: number; // 0 a 100
+  fecha_notificacion_termino?: string;
+  conformidad_operador: boolean;
+  fecha_conformidad?: string;
+}
+
+// ==========================================
+// TIPOS E INTERFACES HEREDADAS / COMPATIBILIDAD
+// ==========================================
+
+export type RolUsuario = 'supervisor' | 'operador' | 'jefe_area' | 'taller';
+export type TipoMantenimiento = 'preventivo' | 'correctivo';
+export type EtapaProceso =
+  | 'presupuesto'
+  | 'tramite_raf'
+  | 'solicitud_psl'
+  | 'orden_taller'
+  | 'en_taller'
+  | 'concluido';
+
 export interface RegistroFirmaFisica {
   firmado: boolean;
   fechaFirma?: string;
@@ -31,9 +121,9 @@ export interface RegistroFirmaFisica {
 }
 
 export interface FirmasPresupuesto {
-  usuario: RegistroFirmaFisica;         // Firma 1: Usuario / Operador de la unidad
-  jefe: RegistroFirmaFisica;            // Firma 2: Jefe del usuario (Área Usuaria)
-  supervisor: RegistroFirmaFisica;      // Firma 3: Supervisor de Logística Terrestre
+  usuario: RegistroFirmaFisica;
+  jefe: RegistroFirmaFisica;
+  supervisor: RegistroFirmaFisica;
 }
 
 export interface ConceptoMantenimiento {
@@ -93,7 +183,7 @@ export interface DatosOrdenTaller {
   entregadaAOperador: boolean;
   entrada: RegistroCruzadoEntrada;
   comprasRefaccionesCompletadas: boolean;
-  porcentajeAvanceTrabajos: number; // 0 a 100 %
+  porcentajeAvanceTrabajos: number;
   descripcionAvance?: string;
   salida: RegistroCruzadoSalida;
   firmaConformidad: RegistroFirmaFisica;
@@ -119,5 +209,3 @@ export interface UnidadEnProceso {
   psl: DatosPSL;
   ordenTaller: DatosOrdenTaller;
 }
-
-export type ExpedienteMantenimiento = UnidadEnProceso;

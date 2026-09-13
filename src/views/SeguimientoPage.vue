@@ -27,14 +27,14 @@
           <!-- Encabezado de la Unidad -->
           <ion-card-header>
             <div class="header-top-row">
-              <span class="unidad-categoria">{{ unidad.tipoUnidad }}</span>
-              <ion-badge :color="unidad.tipoMantenimiento === 'preventivo' ? 'warning' : 'danger'">
-                {{ unidad.tipoMantenimiento.toUpperCase() }}
+              <span class="unidad-categoria">Servicio {{ unidad.tipo_servicio }}</span>
+              <ion-badge :color="unidad.tipo_servicio === TipoServicio.PREVENTIVO ? 'warning' : 'danger'">
+                {{ unidad.tipo_servicio }}
               </ion-badge>
             </div>
-            <ion-card-title class="economico-title">No. Unidad: {{ unidad.numeroUnidad }}</ion-card-title>
+            <ion-card-title class="economico-title">No. Unidad: {{ unidad.numero_economico }}</ion-card-title>
             <ion-card-subtitle>
-              Placas: {{ unidad.placas }} · {{ unidad.ubicacionActivo }}
+              Placas: {{ unidad.placas }} · Apertura: {{ unidad.fecha_apertura }}
             </ion-card-subtitle>
           </ion-card-header>
 
@@ -42,15 +42,15 @@
             <!-- Diagnóstico / Falla -->
             <div class="falla-box">
               <span class="box-label">Diagnóstico / Motivo de Servicio:</span>
-              <p>{{ unidad.descripcionFalla }}</p>
+              <p>{{ unidad.diagnostico_inicial }}</p>
             </div>
 
             <!-- Estatus / Acción Pendiente Inmediata -->
             <div class="pendiente-box">
               <ion-icon :icon="alertCircleOutline" class="alert-icon" aria-hidden="true"></ion-icon>
               <div>
-                <strong>Acción Pendiente:</strong>
-                <p>{{ unidad.pendienteActual }}</p>
+                <strong>Estado Actual:</strong>
+                <p>{{ unidad.estado_actual }}</p>
               </div>
             </div>
 
@@ -69,20 +69,23 @@
                   aria-hidden="true"
                 ></ion-icon>
                 <ion-label>
-                  <h3>1. Presupuesto (Firmas)</h3>
-                  <p class="sub-detalle">Folio Taller: {{ unidad.presupuesto.folioPresupuesto }} ({{ unidad.presupuesto.tallerNombre }})</p>
+                  <h3>1. Presupuesto (Firmas Físicas)</h3>
+                  <p class="sub-detalle">
+                    Folio Cotización: {{ unidad.folios.folio_cotizacion || 'Pendiente' }}
+                    <span v-if="unidad.folios.fecha_envio_cotizacion">({{ unidad.folios.fecha_envio_cotizacion }})</span>
+                  </p>
                   
                   <div class="firmas-grid">
-                    <span class="firma-chip" :class="{ signed: unidad.presupuesto.firmas.usuario.firmado }">
-                      <ion-icon :icon="unidad.presupuesto.firmas.usuario.firmado ? checkmarkCircle : timeOutline" aria-hidden="true"></ion-icon>
+                    <span class="firma-chip" :class="{ signed: tieneFirma(unidad, TipoFirmante.OPERADOR) }">
+                      <ion-icon :icon="tieneFirma(unidad, TipoFirmante.OPERADOR) ? checkmarkCircle : timeOutline" aria-hidden="true"></ion-icon>
                       Usuario (Operador)
                     </span>
-                    <span class="firma-chip" :class="{ signed: unidad.presupuesto.firmas.jefe.firmado }">
-                      <ion-icon :icon="unidad.presupuesto.firmas.jefe.firmado ? checkmarkCircle : timeOutline" aria-hidden="true"></ion-icon>
+                    <span class="firma-chip" :class="{ signed: tieneFirma(unidad, TipoFirmante.JEFE_AREA) }">
+                      <ion-icon :icon="tieneFirma(unidad, TipoFirmante.JEFE_AREA) ? checkmarkCircle : timeOutline" aria-hidden="true"></ion-icon>
                       Jefe de Área
                     </span>
-                    <span class="firma-chip" :class="{ signed: unidad.presupuesto.firmas.supervisor.firmado }">
-                      <ion-icon :icon="unidad.presupuesto.firmas.supervisor.firmado ? checkmarkCircle : timeOutline" aria-hidden="true"></ion-icon>
+                    <span class="firma-chip" :class="{ signed: tieneFirma(unidad, TipoFirmante.SUPERVISOR) }">
+                      <ion-icon :icon="tieneFirma(unidad, TipoFirmante.SUPERVISOR) ? checkmarkCircle : timeOutline" aria-hidden="true"></ion-icon>
                       Supervisor Logística
                     </span>
                   </div>
@@ -93,17 +96,17 @@
               <ion-item lines="full" class="secuencia-item">
                 <ion-icon
                   slot="start"
-                  :icon="unidad.raf.autorizadoCartera ? checkmarkCircle : timeOutline"
-                  :color="unidad.raf.autorizadoCartera ? 'success' : 'medium'"
+                  :icon="unidad.folios.autorizado_cartera ? checkmarkCircle : timeOutline"
+                  :color="unidad.folios.autorizado_cartera ? 'success' : 'medium'"
                   aria-hidden="true"
                 ></ion-icon>
                 <ion-label>
                   <h3>2. Trámite RAF</h3>
                   <p>
-                    <strong>No. RAF:</strong> {{ unidad.raf.numeroRaf || 'Pendiente de generación por Logística' }}
+                    <strong>No. RAF:</strong> {{ unidad.folios.folio_raf || 'Pendiente de generación por Logística' }}
                   </p>
-                  <p class="sub-status" :class="unidad.raf.autorizadoCartera ? 'text-success' : 'text-warning'">
-                    {{ unidad.raf.autorizadoCartera ? 'Autorizado en Cartera de Proyectos (' + unidad.raf.oficioCartera + ')' : 'Pendiente de autorización en Cartera de Proyectos' }}
+                  <p class="sub-status" :class="unidad.folios.autorizado_cartera ? 'text-success' : 'text-warning'">
+                    {{ unidad.folios.autorizado_cartera ? 'Autorizado en Cartera de Proyectos' : 'Pendiente de autorización en Cartera de Proyectos' }}
                   </p>
                 </ion-label>
               </ion-item>
@@ -112,17 +115,17 @@
               <ion-item lines="full" class="secuencia-item">
                 <ion-icon
                   slot="start"
-                  :icon="unidad.psl.generadoPorPsl ? checkmarkCircle : timeOutline"
-                  :color="unidad.psl.generadoPorPsl ? 'success' : 'medium'"
+                  :icon="unidad.folios.folio_solicitud_psl ? checkmarkCircle : timeOutline"
+                  :color="unidad.folios.folio_solicitud_psl ? 'success' : 'medium'"
                   aria-hidden="true"
                 ></ion-icon>
                 <ion-label>
                   <h3>3. Solicitud de Servicio (PSL)</h3>
                   <p>
-                    <strong>Folio PSL:</strong> {{ unidad.psl.folioSolicitudPsl || 'Pendiente de registrar por Área Usuaria' }}
+                    <strong>Folio PSL:</strong> {{ unidad.folios.folio_solicitud_psl || 'Pendiente de registrar por Área Usuaria' }}
                   </p>
-                  <p class="sub-status" :class="unidad.psl.generadoPorPsl ? 'text-success' : 'text-warning'">
-                    {{ unidad.psl.generadoPorPsl ? 'Generada vía PSL por el Área Usuaria' : 'Pendiente de generación en portal PSL' }}
+                  <p class="sub-status" :class="unidad.folios.folio_solicitud_psl ? 'text-success' : 'text-warning'">
+                    {{ unidad.folios.folio_solicitud_psl ? 'Generada vía PSL por el Área Usuaria' : 'Pendiente de generación en portal PSL' }}
                   </p>
                 </ion-label>
               </ion-item>
@@ -131,68 +134,83 @@
               <ion-item lines="full" class="secuencia-item">
                 <ion-icon
                   slot="start"
-                  :icon="unidad.ordenTaller.entregadaAOperador ? checkmarkCircle : timeOutline"
-                  :color="unidad.ordenTaller.entregadaAOperador ? 'success' : 'medium'"
+                  :icon="unidad.folios.folio_orden_taller ? checkmarkCircle : timeOutline"
+                  :color="unidad.folios.folio_orden_taller ? 'success' : 'medium'"
                   aria-hidden="true"
                 ></ion-icon>
                 <ion-label>
                   <h3>4. Orden de Taller</h3>
                   <p>
-                    <strong>No. Orden:</strong> {{ unidad.ordenTaller.folioOrden || 'Pendiente de emitir' }}
+                    <strong>No. Orden:</strong> {{ unidad.folios.folio_orden_taller || 'Pendiente de emitir' }}
                   </p>
                   <div class="orden-status-row">
-                    <ion-badge :color="unidad.ordenTaller.generada ? 'primary' : 'medium'" class="mini-tag">
-                      {{ unidad.ordenTaller.generada ? 'Generada por Logística' : 'Pendiente Generar' }}
-                    </ion-badge>
-                    <ion-badge :color="unidad.ordenTaller.entregadaAOperador ? 'success' : 'medium'" class="mini-tag">
-                      {{ unidad.ordenTaller.entregadaAOperador ? 'Entregada al Operador' : 'Pendiente Entrega' }}
+                    <ion-badge :color="unidad.folios.folio_orden_taller ? 'primary' : 'medium'" class="mini-tag">
+                      {{ unidad.folios.folio_orden_taller ? 'Orden Emitida por Logística' : 'Pendiente Emitir' }}
                     </ion-badge>
                   </div>
                 </ion-label>
               </ion-item>
 
-              <!-- 5. Estatus en Taller (Avance de refacciones, avance de mantenimiento y fecha/hora de entrada cruzada) -->
+              <!-- 5. Estatus en Taller (Avance de refacciones, avance de mantenimiento y fecha/hora de entrada cruzada con odómetro) -->
               <ion-item lines="none" class="secuencia-item">
                 <ion-icon
                   slot="start"
-                  :icon="unidad.ordenTaller.entrada.registradoUsuario ? checkmarkCircle : timeOutline"
-                  :color="unidad.ordenTaller.entrada.registradoUsuario ? 'success' : 'medium'"
+                  :icon="getRegistroTransito(unidad, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR) ? checkmarkCircle : timeOutline"
+                  :color="getRegistroTransito(unidad, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR) ? 'success' : 'medium'"
                   aria-hidden="true"
                 ></ion-icon>
                 <ion-label>
                   <h3>5. Estatus en Taller</h3>
 
-                  <!-- Registro de Entrada (Usuario y Taller) -->
+                  <!-- Registro de Entrada Cruzada (Usuario y Taller) -->
                   <div class="checkin-cruzado-box">
                     <span class="checkin-title">Registro de Entrada a Taller:</span>
                     <div class="registro-fila">
                       <span>• Operador (Usuario):</span>
-                      <strong>{{ unidad.ordenTaller.entrada.fechaHoraUsuario || 'Pendiente de registrar' }}</strong>
+                      <strong>
+                        {{ getRegistroTransito(unidad, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR)?.fecha_hora_declarada || 'Pendiente de registrar' }}
+                        <span v-if="getRegistroTransito(unidad, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR)?.lectura_odometro">
+                          · {{ getRegistroTransito(unidad, TipoMovimiento.ENTRADA, ActorRegistro.OPERADOR)?.lectura_odometro?.toLocaleString() }} km
+                        </span>
+                      </strong>
                     </div>
                     <div class="registro-fila">
                       <span>• Personal del Taller:</span>
-                      <strong>{{ unidad.ordenTaller.entrada.fechaHoraTaller || 'Pendiente de registrar' }}</strong>
+                      <strong>
+                        {{ getRegistroTransito(unidad, TipoMovimiento.ENTRADA, ActorRegistro.TALLER)?.fecha_hora_declarada || 'Pendiente de registrar' }}
+                      </strong>
                     </div>
                   </div>
 
                   <!-- Avances Reportados por el Taller -->
                   <div class="avances-box">
                     <div class="avance-row">
-                      <span>Compra de Refacciones:</span>
-                      <ion-badge :color="unidad.ordenTaller.comprasRefaccionesCompletadas ? 'success' : 'warning'">
-                        {{ unidad.ordenTaller.comprasRefaccionesCompletadas ? 'Completadas 100%' : 'En proceso de compra' }}
+                      <span>Estatus de Refacciones:</span>
+                      <ion-badge
+                        :color="
+                          unidad.estatus_refacciones === EstatusRefacciones.COMPLETO
+                            ? 'success'
+                            : unidad.estatus_refacciones === EstatusRefacciones.EN_PROCESO
+                            ? 'warning'
+                            : 'medium'
+                        "
+                      >
+                        {{
+                          unidad.estatus_refacciones === EstatusRefacciones.COMPLETO
+                            ? 'Completadas 100%'
+                            : unidad.estatus_refacciones === EstatusRefacciones.EN_PROCESO
+                            ? 'En proceso de compra'
+                            : 'Pendiente'
+                        }}
                       </ion-badge>
                     </div>
 
                     <div class="progreso-mantenimiento">
                       <div class="progreso-label">
                         <span>Avance de Mantenimiento:</span>
-                        <strong>{{ unidad.ordenTaller.porcentajeAvanceTrabajos }}%</strong>
+                        <strong>{{ unidad.avance_mantenimiento }}%</strong>
                       </div>
-                      <ion-progress-bar :value="unidad.ordenTaller.porcentajeAvanceTrabajos / 100" color="primary"></ion-progress-bar>
-                      <p v-if="unidad.ordenTaller.descripcionAvance" class="avance-desc">
-                        {{ unidad.ordenTaller.descripcionAvance }}
-                      </p>
+                      <ion-progress-bar :value="unidad.avance_mantenimiento / 100" color="primary"></ion-progress-bar>
                     </div>
                   </div>
                 </ion-label>
@@ -232,208 +250,185 @@ import {
   checkmarkCircle,
   timeOutline,
 } from 'ionicons/icons';
-import { UnidadEnProceso } from '@/types/mantenimiento';
+import {
+  ExpedienteMantenimiento,
+  TipoServicio,
+  TipoFirmante,
+  TipoMovimiento,
+  ActorRegistro,
+  EstatusRefacciones,
+  RegistroTransito,
+} from '@/types/mantenimiento';
 
-const todasFirmasPresupuesto = (unidad: UnidadEnProceso): boolean => {
-  return (
-    unidad.presupuesto.firmas.usuario.firmado &&
-    unidad.presupuesto.firmas.jefe.firmado &&
-    unidad.presupuesto.firmas.supervisor.firmado
+const tieneFirma = (expediente: ExpedienteMantenimiento, firmante: TipoFirmante): boolean => {
+  return expediente.firmas_presupuesto.some(
+    (f) => f.tipo_firmante === firmante && f.firmado_fisicamente
   );
 };
 
-const unidadesEnProceso = ref<UnidadEnProceso[]>([
+const todasFirmasPresupuesto = (expediente: ExpedienteMantenimiento): boolean => {
+  return [TipoFirmante.OPERADOR, TipoFirmante.JEFE_AREA, TipoFirmante.SUPERVISOR].every(
+    (firmante) => tieneFirma(expediente, firmante)
+  );
+};
+
+const getRegistroTransito = (
+  expediente: ExpedienteMantenimiento,
+  mov: TipoMovimiento,
+  actor: ActorRegistro
+): RegistroTransito | undefined => {
+  return expediente.registros_transito.find(
+    (r) => r.tipo_movimiento === mov && r.actor_reporta === actor
+  );
+};
+
+const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
   {
     id: 'u-01',
-    numeroUnidad: '1000017590',
+    numero_economico: '1000017590',
     placas: 'VM-4921-A',
-    tipoUnidad: 'Camioneta Pick-up 4x4',
-    ubicacionActivo: 'Activo Bellota Jujo',
-    operadorNombre: 'C. Juan Pablo Domínguez',
-    jefeAreaNombre: 'Ing. Carlos Mendoza (Jefe de Sector)',
-    tipoMantenimiento: 'correctivo',
-    descripcionFalla: 'Pérdida de potencia en ascenso y fuga de aceite en retén de distribución',
-    etapaActual: 'orden_taller',
-    pendienteActual: 'El operador debe ingresar la unidad al taller con la orden emitida',
-    fechaInicio: '04/09/2026',
-    presupuesto: {
-      id: 'PRE-001',
-      folioPresupuesto: 'COT-STD-4102',
-      tallerNombre: 'JR Estética Automotriz S.A. de C.V.',
-      contratoPemex: '641002891',
-      pedidoSap: '4500918234',
-      fechaEmisionDiagnostico: '05/09/2026',
-      generadoPorTaller: true,
-      conceptos: [
-        { id: 'c1', descripcion: 'Retén de cigüeñal delantero', tipo: 'refaccion', cantidad: 1 },
-        { id: 'c2', descripcion: 'Juego de sellos para tapa de distribución', tipo: 'refaccion', cantidad: 1 },
-        { id: 'c3', descripcion: 'Mano de obra: Desmontaje y cambio de retenes', tipo: 'mano_de_obra', cantidad: 1 },
-      ],
-      firmas: {
-        usuario: { firmado: true, fechaFirma: '05/09/2026 14:30', responsableNombre: 'C. Juan Pablo Domínguez' },
-        jefe: { firmado: true, fechaFirma: '06/09/2026 09:15', responsableNombre: 'Ing. Carlos Mendoza' },
-        supervisor: { firmado: true, fechaFirma: '06/09/2026 11:40', responsableNombre: 'Ing. Fernando Ruiz' },
-      },
+    tipo_servicio: TipoServicio.CORRECTIVO,
+    diagnostico_inicial: 'Pérdida de potencia en ascenso y fuga de aceite en retén de distribución',
+    fecha_apertura: '04/09/2026',
+    estado_actual: 'El operador debe ingresar la unidad al taller con la orden emitida',
+    folios: {
+      folio_cotizacion: 'COT-STD-4102',
+      fecha_envio_cotizacion: '05/09/2026',
+      folio_raf: 'RAF-BJ-2026-089',
+      autorizado_cartera: true,
+      folio_solicitud_psl: 'DTI2026000293',
+      folio_orden_taller: 'MPC2026000456',
     },
-    raf: {
-      numeroRaf: 'RAF-BJ-2026-089',
-      fechaGeneracionLogistica: '06/09/2026',
-      generadoPorLogistica: true,
-      autorizadoCartera: true,
-      fechaAutorizacionCartera: '07/09/2026',
-      oficioCartera: 'CP-77/26',
-    },
-    psl: {
-      folioSolicitudPsl: 'DTI2026000293',
-      fechaSolicitud: '07/09/2026',
-      generadoPorPsl: true,
-    },
-    ordenTaller: {
-      folioOrden: 'MPC2026000456',
-      fechaEmisionLogistica: '08/09/2026 08:30',
-      generada: true,
-      entregadaAOperador: true,
-      entrada: {
-        registradoUsuario: false,
-        registradoTaller: false,
+    firmas_presupuesto: [
+      {
+        tipo_firmante: TipoFirmante.OPERADOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'C. Juan Pablo Domínguez',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '05/09/2026 14:30',
       },
-      comprasRefaccionesCompletadas: false,
-      porcentajeAvanceTrabajos: 0,
-      salida: {
-        registradoUsuario: false,
-        registradoTaller: false,
+      {
+        tipo_firmante: TipoFirmante.JEFE_AREA,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Carlos Mendoza',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '06/09/2026 09:15',
       },
-      firmaConformidad: {
-        firmado: false,
+      {
+        tipo_firmante: TipoFirmante.SUPERVISOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Fernando Ruiz',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '06/09/2026 11:40',
       },
-    },
+    ],
+    registros_transito: [],
+    estatus_refacciones: EstatusRefacciones.PENDIENTE,
+    avance_mantenimiento: 0,
+    conformidad_operador: false,
   },
   {
     id: 'u-02',
-    numeroUnidad: '1000018420',
+    numero_economico: '1000018420',
     placas: 'TB-1104-C',
-    tipoUnidad: 'Camión de Transporte de Personal',
-    ubicacionActivo: 'Activo Bellota Jujo',
-    operadorNombre: 'C. Roberto Palma Suárez',
-    jefeAreaNombre: 'Ing. Héctor Salazar (Coordinador Jujo)',
-    tipoMantenimiento: 'preventivo',
-    descripcionFalla: 'Mantenimiento preventivo mayor de 500 horas de motor y calibración general',
-    etapaActual: 'en_taller',
-    pendienteActual: 'Taller ejecutando trabajos mecánicos (Avance: 65%)',
-    fechaInicio: '01/09/2026',
-    presupuesto: {
-      id: 'PRE-002',
-      folioPresupuesto: 'COT-TMPT-7820',
-      tallerNombre: 'JR Estética Automotriz S.A. de C.V.',
-      contratoPemex: '641002891',
-      pedidoSap: '4500918235',
-      fechaEmisionDiagnostico: '02/09/2026',
-      generadoPorTaller: true,
-      conceptos: [
-        { id: 'c1', descripcion: 'Kit de filtros de aire, aceite y combustible diésel', tipo: 'refaccion', cantidad: 1 },
-        { id: 'c2', descripcion: 'Mano de obra: Afinación mayor y calibración de inyectores', tipo: 'mano_de_obra', cantidad: 1 },
-      ],
-      firmas: {
-        usuario: { firmado: true, fechaFirma: '02/09/2026', responsableNombre: 'C. Roberto Palma Suárez' },
-        jefe: { firmado: true, fechaFirma: '03/09/2026', responsableNombre: 'Ing. Héctor Salazar' },
-        supervisor: { firmado: true, fechaFirma: '03/09/2026', responsableNombre: 'Ing. Fernando Ruiz' },
-      },
+    tipo_servicio: TipoServicio.PREVENTIVO,
+    diagnostico_inicial: 'Mantenimiento preventivo mayor de 500 horas de motor y calibración general',
+    fecha_apertura: '01/09/2026',
+    estado_actual: 'Taller ejecutando trabajos mecánicos (Avance: 65%)',
+    folios: {
+      folio_cotizacion: 'COT-TMPT-7820',
+      fecha_envio_cotizacion: '02/09/2026',
+      folio_raf: 'RAF-BJ-2026-085',
+      autorizado_cartera: true,
+      folio_solicitud_psl: 'DTI2026000287',
+      folio_orden_taller: 'MPC2026000450',
     },
-    raf: {
-      numeroRaf: 'RAF-BJ-2026-085',
-      fechaGeneracionLogistica: '03/09/2026',
-      generadoPorLogistica: true,
-      autorizadoCartera: true,
-      fechaAutorizacionCartera: '04/09/2026',
-      oficioCartera: 'CP-72/26',
-    },
-    psl: {
-      folioSolicitudPsl: 'DTI2026000287',
-      fechaSolicitud: '04/09/2026',
-      generadoPorPsl: true,
-    },
-    ordenTaller: {
-      folioOrden: 'MPC2026000450',
-      fechaEmisionLogistica: '05/09/2026',
-      generada: true,
-      entregadaAOperador: true,
-      entrada: {
-        fechaHoraUsuario: '06/09/2026 08:50',
-        registradoUsuario: true,
-        fechaHoraTaller: '06/09/2026 09:00',
-        registradoTaller: true,
-        lecturaUso: '1,850 hrs (Horómetro)',
+    firmas_presupuesto: [
+      {
+        tipo_firmante: TipoFirmante.OPERADOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'C. Roberto Palma Suárez',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '02/09/2026 10:00',
       },
-      comprasRefaccionesCompletadas: true,
-      porcentajeAvanceTrabajos: 65,
-      descripcionAvance: 'Refacciones recibidas; en calibración de bomba de inyección',
-      salida: {
-        registradoUsuario: false,
-        registradoTaller: false,
+      {
+        tipo_firmante: TipoFirmante.JEFE_AREA,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Héctor Salazar',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '03/09/2026 09:30',
       },
-      firmaConformidad: {
-        firmado: false,
+      {
+        tipo_firmante: TipoFirmante.SUPERVISOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'Ing. Fernando Ruiz',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '03/09/2026 12:00',
       },
-    },
+    ],
+    registros_transito: [
+      {
+        tipo_movimiento: TipoMovimiento.ENTRADA,
+        actor_reporta: ActorRegistro.OPERADOR,
+        fecha_hora_declarada: '06/09/2026 08:50',
+        fecha_hora_servidor: '06/09/2026 08:51:14',
+        lectura_odometro: 1850,
+      },
+      {
+        tipo_movimiento: TipoMovimiento.ENTRADA,
+        actor_reporta: ActorRegistro.TALLER,
+        fecha_hora_declarada: '06/09/2026 09:00',
+        fecha_hora_servidor: '06/09/2026 09:02:05',
+        lectura_odometro: 1850,
+      },
+    ],
+    estatus_refacciones: EstatusRefacciones.COMPLETO,
+    avance_mantenimiento: 65,
+    conformidad_operador: false,
   },
   {
     id: 'u-03',
-    numeroUnidad: '1000019315',
+    numero_economico: '1000019315',
     placas: 'TR-6029-A',
-    tipoUnidad: 'Camioneta Pick-up Supervisión',
-    ubicacionActivo: 'Activo Bellota Jujo',
-    operadorNombre: 'C. David Cárdenas Gil',
-    jefeAreaNombre: 'Ing. Mario Alcocer',
-    tipoMantenimiento: 'correctivo',
-    descripcionFalla: 'Falla intermitente en inyección diésel y sensor de cigüeñal (CKP)',
-    etapaActual: 'presupuesto',
-    pendienteActual: 'Pendiente recabar firma física de Jefe de Área Usuaria y Supervisor',
-    fechaInicio: '08/09/2026',
-    presupuesto: {
-      id: 'PRE-004',
-      folioPresupuesto: 'COT-INY-5120',
-      tallerNombre: 'JR Estética Automotriz S.A. de C.V.',
-      contratoPemex: '641002891',
-      pedidoSap: '4500918240',
-      fechaEmisionDiagnostico: '09/09/2026',
-      generadoPorTaller: true,
-      conceptos: [
-        { id: 'c1', descripcion: 'Sensor de posición de cigüeñal (CKP)', tipo: 'refaccion', cantidad: 1 },
-        { id: 'c2', descripcion: 'Bomba auxiliar de combustible diésel', tipo: 'refaccion', cantidad: 1 },
-      ],
-      firmas: {
-        usuario: { firmado: true, fechaFirma: '09/09/2026 15:00', responsableNombre: 'C. David Cárdenas Gil' },
-        jefe: { firmado: false },
-        supervisor: { firmado: false },
-      },
+    tipo_servicio: TipoServicio.CORRECTIVO,
+    diagnostico_inicial: 'Falla intermitente en inyección diésel y sensor de cigüeñal (CKP)',
+    fecha_apertura: '08/09/2026',
+    estado_actual: 'Pendiente recabar firma física de Jefe de Área Usuaria y Supervisor',
+    folios: {
+      folio_cotizacion: 'COT-INY-5120',
+      fecha_envio_cotizacion: '09/09/2026',
+      folio_raf: '',
+      autorizado_cartera: false,
+      folio_solicitud_psl: '',
+      folio_orden_taller: '',
     },
-    raf: {
-      generadoPorLogistica: false,
-      autorizadoCartera: false,
-    },
-    psl: {
-      folioSolicitudPsl: '',
-      fechaSolicitud: '',
-      generadoPorPsl: false,
-    },
-    ordenTaller: {
-      folioOrden: '',
-      generada: false,
-      entregadaAOperador: false,
-      entrada: {
-        registradoUsuario: false,
-        registradoTaller: false,
+    firmas_presupuesto: [
+      {
+        tipo_firmante: TipoFirmante.OPERADOR,
+        firmado_fisicamente: true,
+        usuario_que_asienta: 'C. David Cárdenas Gil',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '09/09/2026 15:00',
       },
-      comprasRefaccionesCompletadas: false,
-      porcentajeAvanceTrabajos: 0,
-      salida: {
-        registradoUsuario: false,
-        registradoTaller: false,
+      {
+        tipo_firmante: TipoFirmante.JEFE_AREA,
+        firmado_fisicamente: false,
+        usuario_que_asienta: '',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '',
       },
-      firmaConformidad: {
-        firmado: false,
+      {
+        tipo_firmante: TipoFirmante.SUPERVISOR,
+        firmado_fisicamente: false,
+        usuario_que_asienta: '',
+        es_contingencia: false,
+        fecha_hora_asentamiento: '',
       },
-    },
+    ],
+    registros_transito: [],
+    estatus_refacciones: EstatusRefacciones.PENDIENTE,
+    avance_mantenimiento: 0,
+    conformidad_operador: false,
   },
 ]);
 </script>
@@ -483,12 +478,6 @@ const unidadesEnProceso = ref<UnidadEnProceso[]>([
   font-size: 20px;
   font-weight: 800;
   color: var(--ion-color-dark);
-}
-
-.ubicacion-text {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  color: var(--ion-color-step-600, #555);
 }
 
 .falla-box {
@@ -677,12 +666,5 @@ const unidadesEnProceso = ref<UnidadEnProceso[]>([
   justify-content: space-between;
   font-size: 12px;
   color: var(--ion-color-step-800, #333);
-}
-
-.avance-desc {
-  font-size: 11px;
-  font-style: italic;
-  color: var(--ion-color-medium);
-  margin: 2px 0 0 0;
 }
 </style>
