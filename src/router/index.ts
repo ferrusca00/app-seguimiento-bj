@@ -4,11 +4,17 @@ import { RouteRecordRaw } from 'vue-router';
 const routes: Array<RouteRecordRaw> = [
   {
     path: '',
-    redirect: '/folder/Inbox'
+    redirect: '/seguimiento'
   },
   {
-    path: '/folder/:id',
-    component: () => import ('../views/FolderPage.vue')
+    path: '/seguimiento',
+    name: 'ServiciosActivos',
+    component: () => import('@/views/SeguimientoPage.vue')
+  },
+  {
+    path: '/historial',
+    name: 'Historial',
+    component: () => import('@/views/HistorialPage.vue')
   }
 ]
 

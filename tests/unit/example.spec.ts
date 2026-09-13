@@ -1,21 +1,10 @@
 import { mount } from '@vue/test-utils'
-import FolderPage from '@/views/FolderPage.vue'
+import SeguimientoPage from '@/views/SeguimientoPage.vue'
 import { describe, expect, test } from 'vitest'
 
-describe('FolderPage.vue', () => {
-  test('renders folder view', () => {
-    const mockRoute = {
-      params: {
-        id: 'Outbox'
-      }
-    }
-    const wrapper = mount(FolderPage, {
-      global: {
-        mocks: {
-          $route: mockRoute
-        }
-      }
-    })
-    expect(wrapper.text()).toMatch('Explore UI Components')
+describe('SeguimientoPage.vue', () => {
+  test('renders servicios activos view', () => {
+    const wrapper = mount(SeguimientoPage)
+    expect(wrapper.text()).toMatch('Servicios Activos')
   })
 })
