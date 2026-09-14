@@ -129,7 +129,7 @@
             <div class="botones-expediente">
               <ion-button expand="block" fill="outline" color="primary" class="btn-doc">
                 <ion-icon slot="start" :icon="documentAttachOutline" aria-hidden="true"></ion-icon>
-                Ver Solicitud Escaneada
+                Ver Solicitud
               </ion-button>
 
               <ion-button expand="block" fill="outline" color="secondary" class="btn-doc">
