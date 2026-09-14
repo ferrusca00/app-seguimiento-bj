@@ -151,7 +151,7 @@
                 </ion-label>
               </ion-item>
 
-              <!-- 5. Estatus en Taller (Avance de refacciones, avance de mantenimiento y fecha/hora de entrada cruzada con odómetro) -->
+              <!-- 5. Estatus en Taller (Refacciones, Estatus Cualitativo de Mantenimiento y Entrada Cruzada) -->
               <ion-item lines="none" class="secuencia-item">
                 <ion-icon
                   slot="start"
@@ -164,7 +164,7 @@
 
                   <!-- Registro de Entrada Cruzada (Usuario y Taller) -->
                   <div class="checkin-cruzado-box">
-                    <span class="checkin-title">Registro de Entrada a Taller:</span>
+                    <span class="checkin-title">Entrada al Taller:</span>
                     <div class="registro-fila">
                       <span>• Operador (Usuario):</span>
                       <strong>
@@ -205,12 +205,13 @@
                       </ion-badge>
                     </div>
 
-                    <div class="progreso-mantenimiento">
-                      <div class="progreso-label">
-                        <span>Avance de Mantenimiento:</span>
-                        <strong>{{ unidad.avance_mantenimiento }}%</strong>
-                      </div>
-                      <ion-progress-bar :value="unidad.avance_mantenimiento / 100" color="primary"></ion-progress-bar>
+                    <!-- Indicador Cualitativo de Estado de Trabajos (ion-chip) -->
+                    <div class="estatus-trabajos-row">
+                      <span>Estado de Mantenimiento:</span>
+                      <ion-chip :color="getColorEstatus(unidad.estatus_mantenimiento)" class="mantenimiento-chip">
+                        <ion-icon :icon="getIconEstatus(unidad.estatus_mantenimiento)" aria-hidden="true"></ion-icon>
+                        <ion-label>{{ getTextoEstatus(unidad.estatus_mantenimiento) }}</ion-label>
+                      </ion-chip>
                     </div>
                   </div>
                 </ion-label>
@@ -233,6 +234,7 @@ import {
   IonCardHeader,
   IonCardSubtitle,
   IonCardTitle,
+  IonChip,
   IonContent,
   IonHeader,
   IonIcon,
@@ -241,12 +243,12 @@ import {
   IonList,
   IonMenuButton,
   IonPage,
-  IonProgressBar,
   IonTitle,
   IonToolbar,
 } from '@ionic/vue';
 import {
   alertCircleOutline,
+  buildOutline,
   checkmarkCircle,
   timeOutline,
 } from 'ionicons/icons';
@@ -257,6 +259,7 @@ import {
   TipoMovimiento,
   ActorRegistro,
   EstatusRefacciones,
+  EstatusMantenimiento,
   RegistroTransito,
 } from '@/types/mantenimiento';
 
@@ -280,6 +283,51 @@ const getRegistroTransito = (
   return expediente.registros_transito.find(
     (r) => r.tipo_movimiento === mov && r.actor_reporta === actor
   );
+};
+
+const getColorEstatus = (estatus: EstatusMantenimiento): string => {
+  switch (estatus) {
+    case 'NO_INICIADO':
+      return 'medium';
+    case 'EN_REPARACION':
+      return 'primary';
+    case 'EN_PRUEBAS':
+      return 'warning';
+    case 'CONCLUIDO':
+      return 'success';
+    default:
+      return 'medium';
+  }
+};
+
+const getIconEstatus = (estatus: EstatusMantenimiento) => {
+  switch (estatus) {
+    case 'NO_INICIADO':
+      return timeOutline;
+    case 'EN_REPARACION':
+      return buildOutline;
+    case 'EN_PRUEBAS':
+      return alertCircleOutline;
+    case 'CONCLUIDO':
+      return checkmarkCircle;
+    default:
+      return timeOutline;
+  }
+};
+
+const getTextoEstatus = (estatus: EstatusMantenimiento): string => {
+  switch (estatus) {
+    case 'NO_INICIADO':
+      return 'No Iniciado';
+    case 'EN_REPARACION':
+      return 'En Reparación';
+    case 'EN_PRUEBAS':
+      return 'En Pruebas';
+    case 'CONCLUIDO':
+      return 'Concluido';
+    default:
+      return estatus;
+  }
 };
 
 const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
@@ -324,7 +372,7 @@ const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
     ],
     registros_transito: [],
     estatus_refacciones: EstatusRefacciones.PENDIENTE,
-    avance_mantenimiento: 0,
+    estatus_mantenimiento: 'NO_INICIADO',
     conformidad_operador: false,
   },
   {
@@ -334,7 +382,7 @@ const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
     tipo_servicio: TipoServicio.PREVENTIVO,
     diagnostico_inicial: 'Mantenimiento preventivo mayor de 500 horas de motor y calibración general',
     fecha_apertura: '01/09/2026',
-    estado_actual: 'Taller ejecutando trabajos mecánicos (Avance: 65%)',
+    estado_actual: 'Taller ejecutando trabajos mecánicos (En Reparación)',
     folios: {
       folio_cotizacion: 'COT-TMPT-7820',
       fecha_envio_cotizacion: '02/09/2026',
@@ -383,7 +431,7 @@ const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
       },
     ],
     estatus_refacciones: EstatusRefacciones.COMPLETO,
-    avance_mantenimiento: 65,
+    estatus_mantenimiento: 'EN_REPARACION',
     conformidad_operador: false,
   },
   {
@@ -427,7 +475,7 @@ const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
     ],
     registros_transito: [],
     estatus_refacciones: EstatusRefacciones.PENDIENTE,
-    avance_mantenimiento: 0,
+    estatus_mantenimiento: 'NO_INICIADO',
     conformidad_operador: false,
   },
 ]);
@@ -655,16 +703,21 @@ const unidadesEnProceso = ref<ExpedienteMantenimiento[]>([
   color: var(--ion-color-step-700, #444);
 }
 
-.progreso-mantenimiento {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.progreso-label {
+.estatus-trabajos-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 12px;
-  color: var(--ion-color-step-800, #333);
+  color: var(--ion-color-step-700, #444);
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--ion-color-step-150, #e2e8f0);
+}
+
+.mantenimiento-chip {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  height: 26px;
 }
 </style>

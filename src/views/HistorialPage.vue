@@ -35,7 +35,13 @@
           <ion-card-header>
             <div class="card-header-top">
               <span class="unidad-categoria">Servicio {{ registro.tipo_servicio }}</span>
-              <ion-badge color="success">{{ registro.estado_actual }}</ion-badge>
+              <div class="header-badges">
+                <ion-chip color="success" class="mantenimiento-chip">
+                  <ion-icon :icon="checkmarkCircle" aria-hidden="true"></ion-icon>
+                  <ion-label>Concluido</ion-label>
+                </ion-chip>
+                <ion-badge color="success">{{ registro.estado_actual }}</ion-badge>
+              </div>
             </div>
             <ion-card-title class="economico-title">No. Unidad: {{ registro.numero_economico }}</ion-card-title>
             <ion-card-subtitle>
@@ -64,7 +70,7 @@
 
             <!-- 3. Fechas y Horas Exactas de Entrada y Salida (Registro Cruzado Taller y Usuario con Odómetro) -->
             <div class="registro-cruzado-container">
-              <span class="seccion-titulo">Registro de Fechas y Horas de Tránsito:</span>
+              <span class="seccion-titulo">Registro de Entrada y Salida:</span>
 
               <!-- Bloque Entrada -->
               <div class="horario-box entrada-box">
@@ -154,6 +160,7 @@ import {
   IonCardHeader,
   IonCardSubtitle,
   IonCardTitle,
+  IonChip,
   IonContent,
   IonHeader,
   IonIcon,
@@ -176,6 +183,7 @@ import {
   TipoMovimiento,
   ActorRegistro,
   EstatusRefacciones,
+  EstatusMantenimiento,
   RegistroTransito,
 } from '@/types/mantenimiento';
 
@@ -263,7 +271,7 @@ const registrosConcluidos = ref<ExpedienteMantenimiento[]>([
       },
     ],
     estatus_refacciones: EstatusRefacciones.COMPLETO,
-    avance_mantenimiento: 100,
+    estatus_mantenimiento: EstatusMantenimiento.CONCLUIDO,
     fecha_notificacion_termino: '05/09/2026 16:45',
     conformidad_operador: true,
     fecha_conformidad: '05/09/2026 17:00',
@@ -339,7 +347,7 @@ const registrosConcluidos = ref<ExpedienteMantenimiento[]>([
       },
     ],
     estatus_refacciones: EstatusRefacciones.COMPLETO,
-    avance_mantenimiento: 100,
+    estatus_mantenimiento: EstatusMantenimiento.CONCLUIDO,
     fecha_notificacion_termino: '24/08/2026 15:30',
     conformidad_operador: true,
     fecha_conformidad: '24/08/2026 16:00',
@@ -392,6 +400,12 @@ const registrosFiltrados = computed(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .unidad-categoria {
@@ -534,6 +548,13 @@ const registrosFiltrados = computed(() => {
   margin: 0;
   font-weight: 600;
   font-size: 12px;
+}
+
+.mantenimiento-chip {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  height: 24px;
 }
 
 .empty-box {

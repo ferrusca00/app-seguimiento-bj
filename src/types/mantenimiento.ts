@@ -36,6 +36,19 @@ export enum EstatusRefacciones {
   COMPLETO = 'COMPLETO',
 }
 
+export type EstatusMantenimiento =
+  | 'NO_INICIADO'
+  | 'EN_REPARACION'
+  | 'EN_PRUEBAS'
+  | 'CONCLUIDO';
+
+export const EstatusMantenimiento = {
+  NO_INICIADO: 'NO_INICIADO',
+  EN_REPARACION: 'EN_REPARACION',
+  EN_PRUEBAS: 'EN_PRUEBAS',
+  CONCLUIDO: 'CONCLUIDO',
+} as const;
+
 // ==========================================
 // INTERFACES DEL DICCIONARIO DE DATOS
 // ==========================================
@@ -92,7 +105,7 @@ export interface ExpedienteMantenimiento {
   firmas_presupuesto: BitacoraFirma[];
   registros_transito: RegistroTransito[];
   estatus_refacciones: EstatusRefacciones;
-  avance_mantenimiento: number; // 0 a 100
+  estatus_mantenimiento: EstatusMantenimiento;
   fecha_notificacion_termino?: string;
   conformidad_operador: boolean;
   fecha_conformidad?: string;
