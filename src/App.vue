@@ -16,6 +16,7 @@
       </ion-content>
     </ion-menu>
     <ion-router-outlet id="main-content"></ion-router-outlet>
+    <SpeedInsights />
   </ion-app>
 </template>
 
@@ -40,6 +41,7 @@ import {
   archiveOutline,
   archiveSharp,
 } from 'ionicons/icons';
+import { SpeedInsights } from '@vercel/speed-insights/vue';
 
 const selectedIndex = ref(0);
 const appPages = [
